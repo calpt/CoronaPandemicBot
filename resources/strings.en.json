@@ -1,0 +1,60 @@
+{
+    "start": [
+        "Hello {}!",
+        "",
+        "You have just found @coronapandemicbot \uD83E\uDDA0. This bot gives you up-to-date information on the worldwide spread of the Covid-19 disease.",
+        "",
+        "To get a quick overview of the current status, try /today or /world.",
+        "You can view detailed statistics of your country by using the country code or name (e.g. /de or /germany for Germany). You can also just type the name (without '/'). A full list of all countries by number of cases is available through /list.",
+        "",
+        "Fore more, see /help."
+    ],
+    "help": [
+        "\uD83E\uDDA0 @coronapandemicbot Help",
+        "",
+        "This bot gives you up-to-date information on the worldwide spread of the COVID-19 disease.",
+        "",
+        "*/world*  \u2022  Worldwide case statistics.",
+        "*/today*  \u2022  Summary of today's cases.",
+        "*/list*  \u2022  List of countries ordered by number of cases.",
+        "*/[country]*  \u2022  Case statistics for one country. Replace `[country]` with the country code or country name (e.g. /fr, /france).",
+        "*/help*  \u2022  Show this help.",
+        "",
+        "You can use this bot in any chat without adding it by typing `@coronapandemicbot [country]`.",
+        "—",
+        "This bot is open-source. Visit it on [GitHub \uD83D\uDCBB](https://github.com/calpt/coronapandemicbot).",
+        "Sources: Worldometers.info, Wikimedia Commons.",
+        "Data accessed via [NovelCOVID API](https://github.com/NovelCOVID/API)."
+    ],
+    "today": [
+        "\uD83D\uDCDD Status on {:%Y-%m-%d} at {:%H:%m}",
+        "",
+        "\uD83E\uDDA0 Today, `{:,}` new COVID-19 cases were confirmed.",
+        "\u26B0\uFE0F `{:,}` deaths were reported since the beginning of the day.",
+        "\uD83C\uDF10 In total, `{:,}` people were infected globally. `{:,}` died.",
+        "",
+        "/world  \u2022  /list  \u2022  /help"
+    ],
+    "stats_table": [
+        "COVID-19 Statistics for *{}* {}",
+        "",
+        "\uD83E\uDDA0  `{:,}`  confirmed cases",
+        "\uD83C\uDF21  `{:,}`  active (`{:.1%}`)",
+        "\uD83D\uDD06  `{:,}`  recovered (`{:.1%}`)",
+        "\u26B0\uFE0F  `{:,}`  deaths (`{:.1%}`)",
+        "",
+        "_Today_ \uD83D\uDCC6",
+        "\uD83E\uDDA0  `+ {:,}`  new cases",
+        "\u26B0\uFE0F  `+ {:,}`  deaths",
+        "",
+        "Last Update: {:%Y-%m-%d %H:%m}"
+    ],
+    "more": "More: @coronapandemicbot",
+    "page_left": "\u25C0\uFE0F Page {}",
+    "page_right": "Page {} \u25B6\uFE0F",
+    "to_start": "\u23EA To Start",
+    "to_end": "To End \u23E9",
+    "list_header": "*Countries by confirmed cases* \uD83D\uDCCA\n",
+    "no_data": "Sorry, no data available!",
+    "unknown_place": "Sorry, I don't know this place. Maybe you spelled it incorrectly?"
+}
