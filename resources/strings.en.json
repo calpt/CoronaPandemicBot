@@ -6,6 +6,7 @@
         "",
         "To get a quick overview of the current status, try /today or /world.",
         "You can view detailed statistics of your country by using the country code or name (e.g. /de or /germany for Germany). You can also just type the name (without '/'). A full list of all countries by number of cases is available through /list.",
+        "Subscribe to daily updates with /subscribe.",
         "",
         "Fore more, see /help."
     ],
@@ -18,23 +19,34 @@
         "*/today*  \u2022  Summary of today's cases.",
         "*/list*  \u2022  List of countries ordered by number of cases.",
         "*/[country]*  \u2022  Case statistics for one country. Replace `[country]` with the country code or country name (e.g. /fr, /france).",
+        "*/subscribe*  \u2022  Subscribe to daily status updates with new case statistics.",
+        "*/setcountry*  \u2022  Set your country (for /today and daily updates).",
         "*/help*  \u2022  Show this help.",
         "",
         "You can use this bot in any chat without adding it by typing `@coronapandemicbot [country]`.",
+        "",
         "—",
         "This bot is open-source. Visit it on [GitHub \uD83D\uDCBB](https://github.com/calpt/coronapandemicbot).",
         "Sources: Worldometers.info, Wikimedia Commons.",
         "Data accessed via [NovelCOVID API](https://github.com/NovelCOVID/API)."
     ],
     "today": [
-        "\uD83D\uDCDD Status on {:%Y-%m-%d} at {:%H:%m}",
+        "\uD83D\uDCDD Status on {:%Y-%m-%d} at {:%H:%m} UTC",
         "",
-        "\uD83E\uDDA0 Today, `{:,}` new COVID-19 cases were confirmed.",
-        "\u26B0\uFE0F `{:,}` deaths were reported since the beginning of the day.",
-        "\uD83C\uDF10 In total, `{:,}` people were infected globally. `{:,}` died.",
-        "",
-        "/world  \u2022  /list  \u2022  /help"
+        "\uD83C\uDF10 Worldwide, `{:,}` COVID-19 infections have been reported. `{:,}` infected people died.",
+        "\uD83E\uDDA0 Today, `{:,}` new cases were confirmed.",
+        "\u26B0\uFE0F The number of deaths since 0:00 UTC is `{:,}`.",
+        "More: /world",
+        ""
     ],
+    "today_country": [
+        "{} In {}, `{:,}` infections have been reported. `{:,}` infected people died.",
+        "\uD83E\uDDA0 Today, `{:,}` new cases were confirmed.",
+        "\u26B0\uFE0F The number of deaths since 0:00 UTC is `{:,}`.",
+        "More: /{}",
+        ""
+    ],
+    "today_footer": "/list  \u2022  /subscribe  \u2022  /setcountry  \u2022  /help",
     "stats_table": [
         "COVID-19 Statistics for *{}* {}",
         "",
@@ -46,15 +58,37 @@
         "_Today_ \uD83D\uDCC6",
         "\uD83E\uDDA0  `+ {:,}`  new cases",
         "\u26B0\uFE0F  `+ {:,}`  deaths",
-        "",
-        "Last Update: {:%Y-%m-%d %H:%m}"
+        ""
     ],
+    "stats_table_more": [
+        "\uD83D\uDC65  `{:,}`  cases per million people",
+        "\uD83D\uDC65  `{:,}` deaths per million people",
+        ""
+    ],
+    "stats_updated": "_Updated: {:%Y-%m-%d %H:%m} UTC_",
+    "stats_more": "More",
+    "stats_less": "Less",
     "more": "More: @coronapandemicbot",
     "page_left": "\u25C0\uFE0F Page {}",
     "page_right": "Page {} \u25B6\uFE0F",
     "to_start": "\u23EA To Start",
     "to_end": "To End \u23E9",
     "list_header": "*Countries by confirmed cases* \uD83D\uDCCA\n",
-    "no_data": "Sorry, no data available!",
-    "unknown_place": "Sorry, I don't know this place. Maybe you spelled it incorrectly?"
+    "no_data": "Sorry, no data available! Try again later.",
+    "unknown_place": "Sorry, I don't know this place. Maybe you spelled it incorrectly?",
+    "no_country_set": "You have not configured your country. Use /setcountry to configure it.",
+    "setcountry_start": [
+        "To set your country, send me its ISO alpha-2 or alpha-3 code or its name.",
+        "Send /cancel to cancel."
+    ],
+    "cancel": "Cancelled.",
+    "setcountry_success": "Successfully set your country to *{}*.",
+    "subscribe": [
+        "Subscribed to daily case updates.",
+        "To unsubscribe, send /unsubscribe."
+    ],
+    "unsubscribe": [
+        "Unsubscribed from daily updates.",
+        "To re-subscribe, send /subscribe."
+    ]
 }

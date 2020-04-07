@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 user_agent = "coronapandemicbot Python/{}.{}".format(sys.version_info[0], sys.version_info[1])
 sparql = SPARQLWrapper("https://query.wikidata.org/sparql", agent=user_agent)
 
-BLANK_MAP="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/BlankMap-World.svg/200px-BlankMap-World.svg.png"
 WORLD_MAP="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/COVID-19_Outbreak_World_Map_per_Capita.svg/500px-COVID-19_Outbreak_World_Map_per_Capita.svg.png"
 
 cached = {}
@@ -57,8 +56,7 @@ def cases_country_map(country_code):
             cached[country_code] = path
             return path
         else:
-            # if we couldn't find a distribution map for this country, return a default blank map
-            return BLANK_MAP
+            return None
     except Exception as ex:
         logger.info(ex)
-        return BLANK_MAP
+        return None
