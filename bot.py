@@ -42,6 +42,9 @@ def command_help(update, context):
 def format_stats(update, code, data, icon=None, detailed=False):
     if code in api.countries:
         name = api.countries[code]['name']
+    elif code == WORLD_IDENT:
+        name = "the World"
+        icon = '\U0001f310'
     else:
         name = code
     if not icon:
@@ -126,7 +129,7 @@ def command_world(update, context):
     photo_file = wikidata.cases_world_map()
     data = api.cases_world()
     if data:
-        text = format_stats(update, "the World", data, icon='\U0001f310')
+        text = format_stats(update, WORLD_IDENT, data)
         update.message.reply_photo(photo=photo_file, caption=text, parse_mode=ParseMode.MARKDOWN,
                                    reply_markup=get_stats_keyboard(update, WORLD_IDENT))
     else:
@@ -237,7 +240,7 @@ def handle_inlinequery(update, context):
     for i,s in enumerate(results):
         if s == WORLD_IDENT:
             data = api.cases_world()
-            text = format_stats(update, "the World", data, icon='\U0001f310')
+            text = format_stats(update, WORLD_IDENT, data)
         else:
             country_code = api.name_map[s]
             data = api.cases_country(country_code)

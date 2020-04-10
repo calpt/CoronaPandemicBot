@@ -2,6 +2,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 import requests
 import logging
 import sys
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +25,18 @@ def _check_path(url):
     else:
         return path
 
+# add a timestamp parameter to every image link to avoid long caching by Telegram servers
+def _add_timestamp(url):
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H")
+    return "{}?t={}".format(url, timestamp)
+
 def cases_world_map():
-    return WORLD_MAP
+    return _add_timestamp(WORLD_MAP)
 
 def cases_country_map(country_code):
     country_code = country_code.upper()
     if country_code in cached:
-        return cached[country_code]
+        return _add_timestamp(cached[country_code])
     sparql.setQuery("""
         PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
         PREFIX p: <http://www.wikidata.org/prop/>
@@ -54,7 +60,7 @@ def cases_country_map(country_code):
         if len(results) > 0:
             path = _check_path(results[0]['img']['value'])
             cached[country_code] = path
-            return path
+            return _add_timestamp(path)
         else:
             return None
     except Exception as ex:
