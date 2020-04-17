@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 
 def lang(update):
     if update.message:
@@ -25,3 +26,9 @@ def handler_decorator(handler):
 
 def flag(code):
     return ''.join([chr(ord(c.upper())+127397) for c in code])
+
+def check_flag(s):
+    return re.match(r"[\U0001f1e6-\U0001f1ff]{2}", s)
+
+def code_from_flag(flag):
+    return ''.join([chr(ord(c)-127397) for c in flag])

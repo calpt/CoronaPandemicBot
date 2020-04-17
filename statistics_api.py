@@ -1,6 +1,6 @@
 import requests
 
-BASE_URL="https://corona.lmao.ninja/"
+BASE_URL="https://corona.lmao.ninja/v2/"
 
 class CovidApi:
     """A simple wrapper for the NovelCOVID API (https://github.com/NovelCOVID/API).

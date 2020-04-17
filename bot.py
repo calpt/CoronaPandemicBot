@@ -217,6 +217,10 @@ def handle_text(update, context):
         command_country(update, context, api.name_map[query_string])
     elif WORLD_IDENT in query_string:
         command_world(update, context)
+    elif check_flag(query_string):
+        code = code_from_flag(query_string).lower()
+        if code in api.name_map:
+            command_country(update, context, api.name_map[code]) 
     else:
         update.message.reply_text(resolve('unknown_place', lang(update)))
 
