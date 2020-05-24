@@ -34,14 +34,14 @@
         "\uD83D\uDCDD Status on {:%Y-%m-%d} at {:%H:%m} UTC",
         "",
         "\uD83C\uDF10 Worldwide, `{:,}` COVID-19 infections have been reported. `{:,}` infected people died.",
-        "\uD83E\uDDA0 Today, `{:,}` new cases were confirmed.",
+        "\uD83E\uDDA0 Today, there have been `{:,}` new cases.",
         "\u26B0\uFE0F The number of deaths since 0:00 UTC is `{:,}`.",
         "More: /world",
         ""
     ],
     "today_country": [
         "{} In {}, `{:,}` infections have been reported. `{:,}` infected people died.",
-        "\uD83E\uDDA0 Today, `{:,}` new cases were confirmed.",
+        "\uD83E\uDDA0 Today, there have been `{:,}` new cases.",
         "\u26B0\uFE0F The number of deaths since 0:00 UTC is `{:,}`.",
         "More: /{}",
         ""
@@ -50,7 +50,7 @@
     "stats_table": [
         "COVID-19 Statistics for *{}* {}",
         "",
-        "\uD83E\uDDA0  `{:,}`  confirmed cases",
+        "\uD83E\uDDA0  `{:,}`  estimated cases",
         "\uD83C\uDF21  `{:,}`  active (`{:.1%}`)",
         "\uD83D\uDD06  `{:,}`  recovered (`{:.1%}`)",
         "\u26B0\uFE0F  `{:,}`  deaths (`{:.1%}`)",
@@ -65,6 +65,13 @@
         "\uD83D\uDC65  `{:,}` deaths per million people",
         ""
     ],
+    "stats_table_simple": [
+        "COVID-19 Statistics for *{}* {}",
+        "",
+        "\uD83E\uDDA0  `{:,}`  estimated cases",
+        "\u26B0\uFE0F  `{:,}`  deaths (`{:.1%}`)",
+        ""
+    ],
     "stats_updated": "_Updated: {:%Y-%m-%d %H:%m} UTC_",
     "stats_more": "More",
     "stats_less": "Less",
@@ -73,7 +80,7 @@
     "page_right": "Page {} \u25B6\uFE0F",
     "to_start": "\u23EA To Start",
     "to_end": "To End \u23E9",
-    "list_header": "*Countries by confirmed cases* \uD83D\uDCCA\n",
+    "list_header": "\uD83D\uDCCA Countries by *{}*\n",
     "no_data": "Sorry, no data available! Try again later.",
     "unknown_place": "Sorry, I don't know this place. Maybe you spelled it incorrectly?",
     "no_country_set": "You have not configured your country. Use /setcountry to configure it.",
@@ -90,5 +97,13 @@
     "unsubscribe": [
         "Unsubscribed from daily updates.",
         "To re-subscribe, send /subscribe."
-    ]
+    ],
+    "sort_order": "Sort order \uD83D\uDCCA",
+    "back": "\u25C0\uFE0F Back",
+    "sort_order_cases": "\uD83E\uDDA0 total",
+    "sort_order_casesPerOneMillion": "\uD83E\uDDA0 / million",
+    "sort_order_todayCases": "\uD83E\uDDA0 today",
+    "sort_order_deaths": "\u26B0\uFE0F total",
+    "sort_order_deathsPerOneMillion": "\u26B0\uFE0F / million",
+    "sort_order_todayDeaths": "\u26B0\uFE0F today"
 }

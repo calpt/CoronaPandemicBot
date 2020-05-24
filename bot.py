@@ -49,15 +49,18 @@ def format_stats(update, code, data, icon=None, detailed=False):
         name = code
     if not icon:
         icon = flag(code)
-    p_active = data['active'] / data['cases']
-    p_recov = data['recovered'] / data['cases']
     p_dead = data['deaths'] / data['cases']
-    text = resolve('stats_table', lang(update), name, icon, data['cases'],
-            data['active'], p_active, data['recovered'], p_recov, data['deaths'], p_dead,
-            data['todayCases'], data['todayDeaths'])
-    if detailed:
-        text += '\n'+resolve('stats_table_more', lang(update), data['casesPerOneMillion'] or 0,
-                        data['deathsPerOneMillion'] or 0)
+    if 'active' in data and 'todayCases' in data: # we have detailed data, so use more detailed view
+        p_active = data['active'] / data['cases']
+        p_recov = data['recovered'] / data['cases']
+        text = resolve('stats_table', lang(update), name, icon, data['cases'],
+                data['active'], p_active, data['recovered'], p_recov, data['deaths'], p_dead,
+                data['todayCases'], data['todayDeaths'])
+        if detailed:
+            text += '\n'+resolve('stats_table_more', lang(update), data['casesPerOneMillion'] or 0,
+                            data['deathsPerOneMillion'] or 0)
+    else: # we only have limited data
+        text = resolve('stats_table_simple', lang(update), name, icon, data['cases'], data['deaths'], p_dead)
     text += '\n'+resolve('stats_updated', lang(update), datetime.utcfromtimestamp(data['updated'] / 1e3))
     return text
 
@@ -99,12 +102,13 @@ def command_today(update, context):
     text = get_status_report(country_code, lang(update))
     update.message.reply_markdown(text)
 
-def format_list_item(data):
+def format_list_item(data, order):
     code = data['countryInfo']['iso2'].lower()
+    icon = resolve('sort_order_'+order, None).split(' ')[0]
+    number = data[order]
     text = """
-{} *{}  -  {}*
-      \U0001f9a0 `{:,}`  \u26B0\uFE0F `{:,}`
-    """.format(flag(code), data['country'], '/'+code, data['cases'], data['deaths'])
+{} *{}  -  {}*  -  {} `{:,}`
+    """.format(flag(code), data['country'], '/'+code, icon, number)
     return text
 
 def get_list_keyboard(update, current_index, limit, last=False):
@@ -121,6 +125,25 @@ def get_list_keyboard(update, current_index, limit, last=False):
     else:
         keyboard.append([
             InlineKeyboardButton(resolve('to_end', lang(update)), callback_data="list -1 {}".format(limit))])
+    keyboard.append([
+        InlineKeyboardButton(resolve('sort_order', lang(update)),
+                callback_data="list_order_menu 1 ({} {} {})".format(current_index, limit, int(last)))
+    ])
+    return InlineKeyboardMarkup(keyboard)
+
+SORT_ORDERS = ['cases', 'deaths', 'casesPerOneMillion', 'deathsPerOneMillion', 'todayCases', 'todayDeaths']
+
+def get_list_order_keyboard(update, current_index, limit, last=False):
+    keyboard = []
+    for i, sort_order in enumerate(SORT_ORDERS):
+        button = InlineKeyboardButton(resolve("sort_order_"+sort_order, lang(update)), callback_data="list_order {} {}".format(sort_order, limit))
+        if i % 2 == 0:
+            l = [button]
+        else:
+            l.append(button)
+            keyboard.append(l)
+    keyboard.append([InlineKeyboardButton(resolve('back', lang(update)),
+                callback_data="list_order_menu 0 ({} {} {})".format(current_index, limit, int(last)))])
     return InlineKeyboardMarkup(keyboard)
 
 # command /world
@@ -150,6 +173,22 @@ def command_country(update, context, country_code):
     else:
         update.message.reply_text(resolve('no_data', lang(update)))
 
+def command_us_state(update, context, state):
+    data = api.cases_us_state(state)
+    if data:
+        text = format_stats(update, state.title(), data, icon='\uD83C\uDDFA\uD83C\uDDF8')
+        update.message.reply_markdown(text)
+    else:
+        update.message.reply_text(resolve('no_data', lang(update)))
+
+def command_de_state(update, context, state):
+    data = api.cases_de_state(state)
+    if data:
+        text = format_stats(update, state.title(), data, icon='\uD83C\uDDE9\uD83C\uDDEA')
+        update.message.reply_markdown(text)
+    else:
+        update.message.reply_text(resolve('no_data', lang(update)))
+
 def callback_stats(update, context):
     query = update.callback_query
     country_code = context.match.group(1)
@@ -173,22 +212,33 @@ def callback_stats(update, context):
 # command /list
 @handler_decorator
 def command_list(update, context):
+    # set or retrieve sort order
+    if len(context.args) > 0:
+        order = context.args[0]
+        context.chat_data['order'] = order
+    elif 'order' in context.chat_data:
+        order = context.chat_data['order']
+    else:
+        # use first possible order as default
+        order = SORT_ORDERS[0]
+        context.chat_data['order'] = order
     # by default, return 7 items. min 2 and max 20.
-    limit = int(context.args[0]) if len(context.args) > 0 else 7
+    limit = int(context.args[1]) if len(context.args) > 1 else 7
     limit = min(max(2, limit), 20)
-    case_list = api.cases_country_list()[:limit]
+    case_list = api.cases_country_list(sort_by=order)[:limit]
     if len(case_list) > 0:
-        text = resolve('list_header', lang(update))
+        text = resolve('list_header', lang(update), resolve("sort_order_"+order, lang(update)))
         for item in case_list:
-            text += format_list_item(item)
+            text += format_list_item(item, order)
         update.message.reply_markdown(text, reply_markup=get_list_keyboard(update, 0, limit))
     else:
         update.message.reply_text(resolve('no_data', lang(update)))
 
 def callback_list_pages(update, context):
     query = update.callback_query
+    order = context.chat_data.get('order', SORT_ORDERS[0]) # for backward comp
     page, limit = int(context.match.group(1)), int(context.match.group(2))
-    case_list = api.cases_country_list()
+    case_list = api.cases_country_list(sort_by=order)
     if page >= 0:
         case_list = case_list[page*limit:(page+1)*limit]
     else:
@@ -198,14 +248,42 @@ def callback_list_pages(update, context):
         case_list = case_list[-offset:]
     query.answer()
     if len(case_list) > 0:
-        text = resolve('list_header', lang(update))
+        text = resolve('list_header', lang(update), resolve("sort_order_"+order, lang(update)))
         for item in case_list:
-            text += format_list_item(item)
+            text += format_list_item(item, order)
         query.edit_message_text(text=text, parse_mode=ParseMode.MARKDOWN,
                                 reply_markup=get_list_keyboard(update, page, limit, len(case_list) < limit))
     else:
         query.edit_message_text(resolve('no_data', lang(update)),
                                 reply_markup=get_list_keyboard(update, page, limit, len(case_list) < limit))
+
+def callback_list_order_menu(update, context):
+    query = update.callback_query
+    on = int(context.match.group(1))
+    payload = [int(g) for g in context.match.group(2).split(" ")]
+    query.answer()
+    if on:
+        query.edit_message_reply_markup(reply_markup=get_list_order_keyboard(update, *payload))
+    else:
+        query.edit_message_reply_markup(reply_markup=get_list_keyboard(update, *payload))
+
+def callback_list_order(update, context):
+    query = update.callback_query
+    order = context.match.group(1)
+    # save the selected order
+    context.chat_data['order'] = order
+    limit = int(context.match.group(2))
+    case_list = api.cases_country_list(sort_by=order)[:limit]
+    query.answer()
+    if len(case_list) > 0:
+        text = resolve('list_header', lang(update), resolve("sort_order_"+order, lang(update)))
+        for item in case_list:
+            text += format_list_item(item, order)
+        query.edit_message_text(text=text, parse_mode=ParseMode.MARKDOWN,
+                                reply_markup=get_list_keyboard(update, 0, limit, len(case_list) < limit))
+    else:
+        query.edit_message_text(resolve('no_data', lang(update)),
+                                reply_markup=get_list_keyboard(update, 0, limit, len(case_list) < limit))
 
 ### Free text & inline ###
 
@@ -220,35 +298,57 @@ def handle_text(update, context):
     elif check_flag(query_string):
         code = code_from_flag(query_string).lower()
         if code in api.name_map:
-            command_country(update, context, api.name_map[code]) 
+            command_country(update, context, api.name_map[code])
+    elif query_string.title() in api.us_states:
+        command_us_state(update, context, query_string)
+    elif query_string.title() in api.de_states:
+        command_de_state(update, context, query_string)
     else:
         update.message.reply_text(resolve('unknown_place', lang(update)))
 
 # inline queries
 def handle_inlinequery(update, context):
     inline_query = update.inline_query
-    query_string = inline_query.query
+    query_string = inline_query.query.lower()
     if not query_string:
         return
     results = []
     # a special case matching 'world'
     if WORLD_IDENT.startswith(query_string):
-        results.append(WORLD_IDENT)
+        results.append((WORLD_IDENT, WORLD_IDENT))
     for name in api.name_map.keys():
         if name.startswith(query_string):
-            results.append(name)
+            results.append((name, "country"))
         # limit to the first threee results
         if len(results) >= 3:
             break
+    if len(results) < 3:
+        for state in api.us_states:
+            if state.lower().startswith(query_string):
+                results.append((state.lower(), "us_state"))
+            if len(results) >= 3:
+                break
+    if len(results) < 3:
+        for state in api.de_states:
+            if state.lower().startswith(query_string):
+                results.append((state.lower(), "de_state"))
+            if len(results) >= 3:
+                break
     query_results = []
-    for i,s in enumerate(results):
-        if s == WORLD_IDENT:
+    for i,(s, t) in enumerate(results):
+        if t == WORLD_IDENT:
             data = api.cases_world()
-            text = format_stats(update, WORLD_IDENT, data)
+            text = format_stats(update, WORLD_IDENT, data, detailed=True)
+        elif t == "us_state":
+            data = api.cases_us_state(s)
+            text = format_stats(update, s.title(), data, icon='\uD83C\uDDFA\uD83C\uDDF8')
+        elif t == "de_state":
+            data = api.cases_de_state(s)
+            text = format_stats(update, s.title(), data, icon='\uD83C\uDDE9\uD83C\uDDEA')
         else:
             country_code = api.name_map[s]
             data = api.cases_country(country_code)
-            text = format_stats(update, country_code, data)
+            text = format_stats(update, country_code, data, detailed=True)
         text+='\n'+resolve('more', lang(update))
         result_content = InputTextMessageContent(text, parse_mode=ParseMode.MARKDOWN)
         query_results.append(
@@ -331,6 +431,8 @@ def main(config):
     dp.add_handler(CommandHandler("list", command_list))
     # callbacks for page buttons in list
     dp.add_handler(CallbackQueryHandler(callback_list_pages, pattern=r"list (-?\d+) (\d+)"))
+    dp.add_handler(CallbackQueryHandler(callback_list_order_menu, pattern=r"list_order_menu (\d+) \(([\d\s]+)\)"))
+    dp.add_handler(CallbackQueryHandler(callback_list_order, pattern=r"list_order (\w+) (\d+)"))
     # for every country, add a command for the iso2 and iso3 codes and the name
     for iso, country in api.countries.items():
         callback = lambda update, context, code=iso: command_country(update, context, code)

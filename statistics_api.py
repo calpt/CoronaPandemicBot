@@ -8,6 +8,13 @@ class CovidApi:
     def __init__(self):
         self.countries = self._all_countries()
         self.name_map = self._build_name_map(self.countries)
+        self.us_states = self._all_us_states()
+        self.de_states = self._all_de_states()
+
+    def _clean(self, s):
+        s = s.replace('\xad', '')
+        s = s.replace('\n', '')
+        return s
 
     def _build_name_map(self, countries):
         name_map = {}
@@ -30,6 +37,27 @@ class CovidApi:
         else:
             return {}
 
+    def _all_us_states(self):
+        response = requests.get(BASE_URL+"states")
+        if response.status_code == 200:
+            countries = []
+            for item in response.json():
+                countries.append(item['state'])
+            return countries
+        else:
+            return []
+
+    def _all_de_states(self):
+        response = requests.get(BASE_URL+"gov/de")
+        if response.status_code == 200:
+            countries = []
+            for item in response.json():
+                if item['province'].lower() != 'total':
+                    countries.append(self._clean(item['province']))
+            return countries
+        else:
+            return []
+
     def cases_world(self):
         response = requests.get(BASE_URL+"all")
         if response.status_code == 200:
@@ -51,5 +79,24 @@ class CovidApi:
             data = response.json()
             del data['countryInfo']
             return data
+        else:
+            return None
+
+    def cases_us_state(self, state):
+        response = requests.get(BASE_URL+"states/{}".format(state))
+        if response.status_code == 200:
+            data = response.json()
+            # additions to unify format with countries
+            data['recovered'] = data['cases'] - data['active'] - data['deaths']
+            return data
+        else:
+            return None
+
+    def cases_de_state(self, state):
+        response = requests.get(BASE_URL+"gov/de")
+        if response.status_code == 200:
+            data = response.json()
+            filtered = [item for item in data if self._clean(item['province'].lower()) == state.lower()]
+            return filtered[0] if len(filtered) > 0 else None
         else:
             return None
