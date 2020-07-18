@@ -409,7 +409,10 @@ def run_notify(context):
             context.bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.MARKDOWN)
             count+=1
             sleep(0.05) # try to avoid flood limits
-        except Exception:
+        except Exception as ex:
+            # remove user from subscribers if he blocked or kicked the bot
+            if isinstance(ex, TelegramError) and ex.message.startswith("Forbidden: "):
+                context.bot_data['subscribers'].remove(chat_id)
             logger.error("Failed to send daily notification to {}".format(chat_id), exc_info=True)
     logger.info("Successfully sent daily notification to {} users.".format(count))
 
@@ -457,7 +460,8 @@ def main(config):
     dp.add_handler(CommandHandler("unsubscribe", command_unsubscribe))
     # subscription job
     job_queue = updater.job_queue
-    job_queue.run_daily(run_notify, datetime.strptime(config['notify_time'], '%H:%M').time())
+    if 'notify_time' in config:
+        job_queue.run_daily(run_notify, datetime.strptime(config['notify_time'], '%H:%M').time())
     # free text input
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
     dp.add_handler(InlineQueryHandler(handle_inlinequery))
