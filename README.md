@@ -9,6 +9,7 @@ Commands:
 - **/today**  - Summary of today's cases.
 - **/list** - List of countries ordered by number of cases.
 - **/[country]** - Case statistics for one country. Replace `[country]` with the country code or country name (e.g. /fr, /france).
+- **/graph [country]** - Show a graph with a timeline of new cases of the last 40 days in one country. Type `/graph world` for worldwide cases.
 - **/subscribe** - Subscribe to daily status updates with new case statistics.
 - **/setcountry** - Set your country (for /today and daily updates).
 - **/help** - Show the help.

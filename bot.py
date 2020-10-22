@@ -16,6 +16,7 @@ from statistics_api import CovidApi
 import wikidata
 from resources.resolver import resolve
 from utils import *
+from plot import plot_timeseries
 
 CONFIG_FILE="config.json"
 
@@ -70,6 +71,9 @@ def get_stats_keyboard(update, country_code, is_detailed=False):
     caption = resolve(caption_key, lang(update))
     keyboard[0].append(InlineKeyboardButton(caption,
                     callback_data="stats {} {}".format(country_code, 1 if is_detailed else 0)))
+    keyboard.append([
+        InlineKeyboardButton(resolve("stats_graph", lang(update)), callback_data="graph {}".format(country_code))
+    ])
     return InlineKeyboardMarkup(keyboard)
 
 # the text used for daily notifications and /today
@@ -285,20 +289,69 @@ def callback_list_order(update, context):
         query.edit_message_text(resolve('no_data', lang(update)),
                                 reply_markup=get_list_keyboard(update, 0, limit, len(case_list) < limit))
 
+### Graphs ###
+
+# command: /graph
+@handler_decorator
+def command_graph(update, context):
+    if len(context.args) > 0:
+        resolved = resolve_query_string(context.args[0])
+        if resolved:
+            data = api.timeseries(resolved)
+        elif WORLD_IDENT in context.args[0]:
+            data = api.timeseries()
+        else:
+            update.message.reply_text(resolve('unknown_place', lang(update)))
+            return
+    else:
+        if 'country' in context.chat_data:
+            country_code = context.chat_data['country']
+            data = api.timeseries(country_code)
+        else:
+            data = api.timeseries()
+    if data:
+        buffer = plot_timeseries(data)
+        update.message.reply_photo(photo=buffer)
+        buffer.close()
+    else:
+        update.message.reply_text(resolve('unknown_place', lang(update)))
+
+@handler_decorator
+def callback_graph(update, context):
+    country_code = context.match.group(1)
+    if country_code == WORLD_IDENT:
+        country_code = None
+    data = api.timeseries(country_code)
+    if data:
+        buffer = plot_timeseries(data)
+        update.callback_query.answer()
+        context.bot.send_photo(chat_id=update.callback_query.message.chat_id, photo=buffer)
+        buffer.close()
+    else:
+        update.callback_query.answer()
+        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('unknown_place', lang(update)))
+
 ### Free text & inline ###
+
+def resolve_query_string(query_string):
+    query_string = query_string.lower()
+    if query_string in api.name_map:
+        return api.name_map[query_string]
+    elif check_flag(query_string):
+        code = code_from_flag(query_string).lower()
+        if code in api.name_map:
+            return api.name_map[code]
+    return None
 
 # free text input
 @handler_decorator
 def handle_text(update, context):
     query_string = update.message.text.lower()
-    if query_string in api.name_map:
-        command_country(update, context, api.name_map[query_string])
+    resolved = resolve_query_string(query_string)
+    if resolved:
+        command_country(update, context, resolved)
     elif WORLD_IDENT in query_string:
         command_world(update, context)
-    elif check_flag(query_string):
-        code = code_from_flag(query_string).lower()
-        if code in api.name_map:
-            command_country(update, context, api.name_map[code])
     elif query_string.title() in api.us_states:
         command_us_state(update, context, query_string)
     elif query_string.title() in api.de_states:
@@ -432,6 +485,9 @@ def main(config):
     dp.add_handler(CommandHandler("today", command_today))
     dp.add_handler(CommandHandler("world", command_world))
     dp.add_handler(CommandHandler("list", command_list))
+    # graphs
+    dp.add_handler(CommandHandler("graph", command_graph))
+    dp.add_handler(CallbackQueryHandler(callback_graph, pattern=r"graph (\w+)"))
     # callbacks for page buttons in list
     dp.add_handler(CallbackQueryHandler(callback_list_pages, pattern=r"list (-?\d+) (\d+)"))
     dp.add_handler(CallbackQueryHandler(callback_list_order_menu, pattern=r"list_order_menu (\d+) \(([\d\s]+)\)"))

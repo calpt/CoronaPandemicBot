@@ -2,5 +2,6 @@ help - ℹ️
 world - Worldwide case statistics
 today - Summary of today's cases
 list - List of countries ordered by number of cases
+graph - Timeline of new cases for the last 40 days
 subscribe - Daily status updates
 setcountry - Set your country
