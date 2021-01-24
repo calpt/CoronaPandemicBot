@@ -335,7 +335,7 @@ def callback_map(update, context):
         )
     else:
         update.callback_query.answer()
-        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('unknown_place', lang(update)))
+        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('no_data', lang(update)))
 
 ### Graphs ###
 
@@ -362,7 +362,7 @@ def command_graph(update, context):
         update.message.reply_photo(photo=buffer)
         buffer.close()
     else:
-        update.message.reply_text(resolve('unknown_place', lang(update)))
+        update.message.reply_text(resolve('no_data', lang(update)))
 
 @handler_decorator
 def callback_graph(update, context):
@@ -377,7 +377,7 @@ def callback_graph(update, context):
         buffer.close()
     else:
         update.callback_query.answer()
-        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('unknown_place', lang(update)))
+        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('no_data', lang(update)))
 
 ### Vaccinations ###
 
@@ -404,7 +404,7 @@ def command_vacc(update, context):
         update.message.reply_photo(photo=buffer)
         buffer.close()
     else:
-        update.message.reply_text(resolve('unknown_place', lang(update)))
+        update.message.reply_text(resolve('no_data', lang(update)))
 
 @handler_decorator
 def callback_vacc(update, context):
@@ -419,7 +419,7 @@ def callback_vacc(update, context):
         buffer.close()
     else:
         update.callback_query.answer()
-        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('unknown_place', lang(update)))
+        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('no_data', lang(update)))
 
 ### Free text & inline ###
 

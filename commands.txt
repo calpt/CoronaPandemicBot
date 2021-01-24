@@ -3,6 +3,7 @@ world - Worldwide case statistics
 today - Summary of today's cases
 list - List of countries ordered by number of cases
 subscribe - Daily status updates
+unsubscribe - Unsubscribe from daily status updates
 setcountry - Set your country
 graph - Timeline of new cases for the last 30 days
 vacc - Timeline of daily administered vaccination doses

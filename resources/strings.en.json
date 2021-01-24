@@ -6,7 +6,7 @@
         "",
         "To get a quick overview of the current status, try /today or /world.",
         "You can view detailed statistics of your country by using the country code or name (e.g. /de or /germany for Germany). You can also just type the name (without '/') or use a flag emoji (e.g. \uD83C\uDDFA\uD83C\uDDF8).",
-        "A list of all countries by number of cases is available through /list.",
+        "A list of all countries by number of cases or vaccinations is available through /list.",
         "Subscribe to daily updates with /subscribe.",
         "",
         "For more, see /help."
@@ -20,6 +20,7 @@
         "*/today*  \u2022  Summary of today's cases.",
         "*/list*  \u2022  List of countries ordered by number of cases.",
         "*/subscribe*  \u2022  Subscribe to daily status updates with new case statistics.",
+        "*/unsubscribe*  \u2022  Unsubscribe from daily status updates.",
         "*/setcountry*  \u2022  Set your country (for /today and daily updates).",
         "*/[country]*  \u2022  Case statistics for one country. Replace `[country]` with the country code or country name (e.g. /fr, /france).",
         "*/graph [country]*  \u2022  Show a graph with a timeline of new cases of the last 30 days in one country. Type `/graph world` for worldwide cases.",
@@ -93,7 +94,7 @@
     "to_start": "\u23EA To Start",
     "to_end": "To End \u23E9",
     "list_header": "\uD83D\uDCCA Countries by *{}*\n",
-    "no_data": "Sorry, no data available! Try again later.",
+    "no_data": "Sorry, no data available for this location! Maybe try again later.",
     "unknown_place": "Sorry, I don't know this place. Maybe you spelled it incorrectly?",
     "no_country_set": "You have not configured your country. Use /setcountry to configure it.",
     "setcountry_start": [
