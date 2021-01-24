@@ -1,4 +1,5 @@
 from datetime import datetime
+import math
 
 import requests
 
@@ -62,10 +63,14 @@ class CovidApi:
         else:
             return []
 
-    def cases_world(self):
+    def cases_world(self, include_vaccinations=True):
         response = requests.get(BASE_URL + "all")
         if response.status_code == 200:
-            return response.json()
+            data = response.json()
+            if include_vaccinations:
+                vacc = self.vaccinations_world()
+                data["vaccinations"] = vacc["vaccinations"] if vacc else math.nan
+            return data
         else:
             return None
 
@@ -76,12 +81,15 @@ class CovidApi:
         else:
             return []
 
-    def cases_country(self, country):
+    def cases_country(self, country, include_vaccinations=True):
         country_code = self.name_map[country.lower()]
         response = requests.get(BASE_URL + "countries/{}".format(country_code))
         if response.status_code == 200:
             data = response.json()
             del data["countryInfo"]
+            if include_vaccinations:
+                vacc = self.vaccinations_country(country)
+                data["vaccinations"] = vacc["vaccinations"] if vacc else math.nan
             return data
         else:
             return None
@@ -105,7 +113,7 @@ class CovidApi:
         else:
             return None
 
-    def timeseries(self, country=None, days=40):
+    def timeseries(self, country=None, days=36):
         # we always request one additional day to be able to calculate diffs
         if not country:
             response = requests.get(BASE_URL + "historical/all", params={"lastdays": days + 1})
@@ -127,9 +135,80 @@ class CovidApi:
                 deaths.append(data["deaths"][today] - data["deaths"][yesterday])
             return {
                 "name": name,
-                "first_date": datetime.strptime(sorted_dates[1], "%m/%d/%y"),
+                "last_date": datetime.strptime(sorted_dates[-1], "%m/%d/%y"),
                 "cases": cases,
                 "deaths": deaths,
+            }
+        else:
+            return None
+
+    def vaccinations_world(self):
+        response = requests.get(BASE_URL + "vaccine/coverage", params={"lastdays": 1})
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "vaccinations": list(data.values())[0]
+            }
+        else:
+            return None
+
+    def vaccinations_country(self, country):
+        country_code = self.name_map[country.lower()]
+        response = requests.get(BASE_URL + "vaccine/coverage/countries/{}".format(country_code), params={"lastdays": 1})
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "country": data["country"],
+                "vaccinations": list(data["timeline"].values())[0]
+            }
+        else:
+            return None
+
+    def vaccinations_country_list(self, sort_by="vaccinations"):
+        response = requests.get(BASE_URL + "vaccine/coverage/countries", params={"lastdays": 2})
+        if response.status_code == 200:
+            country_list = []
+            for item in response.json():
+                # try to mimic the output format of cases list
+                if item["country"].lower() in self.name_map:
+                    values = sorted(item["timeline"].items(), key=lambda s: datetime.strptime(s[0], "%m/%d/%y"))
+                    vaccinations = values[1][1]
+                    todayVaccinations = values[1][1] - values[0][1]
+                    data = {
+                        "country": item["country"],
+                        "vaccinations": vaccinations,
+                        "todayVaccinations": todayVaccinations,
+                        "countryInfo": {"iso2": self.name_map[item["country"].lower()]}
+                    }
+                    country_list.append(data)
+            return sorted(country_list, key=lambda c: c[sort_by], reverse=True)
+        else:
+            return []
+
+    def vaccinations_series(self, country=None, days=36):
+        # we always request one additional day to be able to calculate diffs
+        if not country:
+            response = requests.get(BASE_URL + "vaccine/coverage", params={"lastdays": days + 1})
+        else:
+            country_code = self.name_map[country.lower()]
+            response = requests.get(BASE_URL + "vaccine/coverage/countries/{}".format(country_code), params={"lastdays": days + 1})
+        if response.status_code == 200:
+            data = response.json()
+            if "timeline" in data:  # if for a specific country
+                name = data["country"]
+                data = data["timeline"]
+            else:
+                name = "the World"
+            sorted_dates = sorted(data, key=lambda s: datetime.strptime(s, "%m/%d/%y"))
+            vaccinations = []
+            for i in range(1, len(sorted_dates)):
+                today, yesterday = sorted_dates[i], sorted_dates[i - 1]
+                vaccinations.append(data[today] - data[yesterday])
+            return {
+                "name": name,
+                "last_date": datetime.strptime(sorted_dates[-1], "%m/%d/%y"),
+                "vaccinations": vaccinations,
+                "total": data[sorted_dates[-1]],
             }
         else:
             return None

@@ -2,21 +2,21 @@
 from datetime import datetime
 import json
 import logging
+import math
 import re
-import requests
 from time import sleep
 
 from telegram import ParseMode
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, InlineQueryHandler
-from telegram.ext import PicklePersistence, ConversationHandler, DispatcherHandlerStop
+from telegram.ext import PicklePersistence, ConversationHandler
 from telegram.error import TelegramError
 
 from statistics_api import CovidApi
 import wikidata
 from resources.resolver import resolve
 from utils import *
-from plot import plot_timeseries
+from plot import plot_timeseries, plot_vaccinations_series
 
 CONFIG_FILE="config.json"
 
@@ -40,7 +40,7 @@ def command_help(update, context):
 
 ### World & country stats + status report ###
 
-def format_stats(update, code, data, icon=None, detailed=False):
+def get_name_and_icon(code, icon=None):
     if code in api.countries:
         name = api.countries[code]['name']
     elif code == WORLD_IDENT:
@@ -50,29 +50,34 @@ def format_stats(update, code, data, icon=None, detailed=False):
         name = code
     if not icon:
         icon = flag(code)
+    return name, icon
+
+def format_stats(update, code, data, icon=None, detailed=True):
+    name, icon = get_name_and_icon(code, icon=icon)
     p_dead = data['deaths'] / data['cases']
     if 'active' in data and 'todayCases' in data: # we have detailed data, so use more detailed view
         p_active = data['active'] / data['cases']
         p_recov = data['recovered'] / data['cases']
         text = resolve('stats_table', lang(update), name, icon, data['cases'],
                 data['active'], p_active, data['recovered'], p_recov, data['deaths'], p_dead,
+                data.get('vaccinations', math.nan),
                 data['todayCases'], data['todayDeaths'])
         if detailed:
-            text += '\n'+resolve('stats_table_more', lang(update), data['casesPerOneMillion'] or 0,
-                            data['deathsPerOneMillion'] or 0)
+            text += '\n'+resolve('stats_table_more', lang(update), data['casesPerOneMillion'],
+                            data['deathsPerOneMillion'], data['testsPerOneMillion'])
     else: # we only have limited data
         text = resolve('stats_table_simple', lang(update), name, icon, data['cases'], data['deaths'], p_dead)
     text += '\n'+resolve('stats_updated', lang(update), datetime.utcfromtimestamp(data['updated'] / 1e3))
     return text
 
-def get_stats_keyboard(update, country_code, is_detailed=False):
-    keyboard = [[]]
-    caption_key = 'stats_more' if not is_detailed else 'stats_less'
-    caption = resolve(caption_key, lang(update))
-    keyboard[0].append(InlineKeyboardButton(caption,
-                    callback_data="stats {} {}".format(country_code, 1 if is_detailed else 0)))
+def get_stats_keyboard(update, country_code):
+    keyboard = []
     keyboard.append([
-        InlineKeyboardButton(resolve("stats_graph", lang(update)), callback_data="graph {}".format(country_code))
+        InlineKeyboardButton(resolve("stats_map", lang(update)), callback_data="map {}".format(country_code))
+    ])
+    keyboard.append([
+        InlineKeyboardButton(resolve("stats_graph_cases", lang(update)), callback_data="graph {}".format(country_code)),
+        InlineKeyboardButton(resolve("stats_graph_vacc", lang(update)), callback_data="vacc {}".format(country_code))
     ])
     return InlineKeyboardMarkup(keyboard)
 
@@ -82,13 +87,15 @@ def get_status_report(country_code=None, lang="en"):
     if data:
         dt = datetime.utcfromtimestamp(data['updated'] / 1e3)
         text = resolve('today', lang,
-                dt, dt, data['cases'], data['deaths'], data['todayCases'], data['todayDeaths'])
+                dt, dt, data['cases'], data['deaths'], data['todayCases'], data['todayDeaths'], data['vaccinations'])
         # fetch data of home country if set
         if country_code:
             country_data = api.cases_country(country_code)
             text += '\n'+resolve('today_country', lang, flag(country_code),
                             api.countries[country_code]['name'], country_data['cases'], country_data['deaths'],
-                            country_data['todayCases'], country_data['todayDeaths'], country_code.lower())
+                            country_data['todayCases'], country_data['todayDeaths'],
+                            country_data.get('vaccinations', math.nan), country_code.lower()
+                        )
         else:
             text += '\n_'+resolve('no_country_set', lang)+'_\n'
         text += '\n'+resolve('today_footer', lang)
@@ -135,17 +142,25 @@ def get_list_keyboard(update, current_index, limit, last=False):
     ])
     return InlineKeyboardMarkup(keyboard)
 
-SORT_ORDERS = ['cases', 'deaths', 'casesPerOneMillion', 'deathsPerOneMillion', 'todayCases', 'todayDeaths']
+SORT_ORDERS = [
+    'cases', 'deaths',
+    'casesPerOneMillion', 'deathsPerOneMillion',
+    'todayCases', 'todayDeaths',
+    'vaccinations',
+]
 
 def get_list_order_keyboard(update, current_index, limit, last=False):
     keyboard = []
+    l = None
     for i, sort_order in enumerate(SORT_ORDERS):
         button = InlineKeyboardButton(resolve("sort_order_"+sort_order, lang(update)), callback_data="list_order {} {}".format(sort_order, limit))
         if i % 2 == 0:
+            if l:
+                keyboard.append(l)
             l = [button]
         else:
             l.append(button)
-            keyboard.append(l)
+    keyboard.append(l)
     keyboard.append([InlineKeyboardButton(resolve('back', lang(update)),
                 callback_data="list_order_menu 0 ({} {} {})".format(current_index, limit, int(last)))])
     return InlineKeyboardMarkup(keyboard)
@@ -153,27 +168,20 @@ def get_list_order_keyboard(update, current_index, limit, last=False):
 # command /world
 @handler_decorator
 def command_world(update, context):
-    photo_file = wikidata.cases_world_map()
     data = api.cases_world()
     if data:
         text = format_stats(update, WORLD_IDENT, data)
-        update.message.reply_photo(photo=photo_file, caption=text, parse_mode=ParseMode.MARKDOWN,
-                                   reply_markup=get_stats_keyboard(update, WORLD_IDENT))
+        update.message.reply_markdown(text, reply_markup=get_stats_keyboard(update, WORLD_IDENT))
     else:
         update.message.reply_text(resolve('no_data', lang(update)))
 
 # command /[country]
 @handler_decorator
 def command_country(update, context, country_code):
-    photo_file = wikidata.cases_country_map(country_code)
     data = api.cases_country(country_code)
     if data:
         text = format_stats(update, country_code, data)
-        if photo_file:
-            update.message.reply_photo(photo=photo_file, caption=text, parse_mode=ParseMode.MARKDOWN,
-                                       reply_markup=get_stats_keyboard(update, country_code))
-        else:
-            update.message.reply_markdown(text, reply_markup=get_stats_keyboard(update, country_code))
+        update.message.reply_markdown(text, reply_markup=get_stats_keyboard(update, country_code))
     else:
         update.message.reply_text(resolve('no_data', lang(update)))
 
@@ -193,24 +201,6 @@ def command_de_state(update, context, state):
     else:
         update.message.reply_text(resolve('no_data', lang(update)))
 
-def callback_stats(update, context):
-    query = update.callback_query
-    country_code = context.match.group(1)
-    # True if we want to *show* detailed mode, False otherwise
-    is_detailed = not bool(int(context.match.group(2)))
-    if country_code == WORLD_IDENT:
-        data = api.cases_world()
-    else:
-        data = api.cases_country(country_code)
-    if data:
-        text = format_stats(update, country_code, data, detailed=is_detailed)
-        if query.message.caption:
-            query.edit_message_caption(caption=text, parse_mode=ParseMode.MARKDOWN,
-                                       reply_markup=get_stats_keyboard(update, country_code, is_detailed))
-        else:
-            query.edit_message_text(text=text, parse_mode=ParseMode.MARKDOWN,
-                                    reply_markup=get_stats_keyboard(update, country_code, is_detailed))
-
 ### Country list ###
 
 # command /list
@@ -226,10 +216,13 @@ def command_list(update, context):
         # use first possible order as default
         order = SORT_ORDERS[0]
         context.chat_data['order'] = order
-    # by default, return 7 items. min 2 and max 20.
-    limit = int(context.args[1]) if len(context.args) > 1 else 7
+    # by default, return 8 items. min 2 and max 20.
+    limit = int(context.args[1]) if len(context.args) > 1 else 8
     limit = min(max(2, limit), 20)
-    case_list = api.cases_country_list(sort_by=order)[:limit]
+    if order in ["vaccinations"]:
+        case_list = api.vaccinations_country_list(sort_by=order)[:limit]
+    else:
+        case_list = api.cases_country_list(sort_by=order)[:limit]
     if len(case_list) > 0:
         text = resolve('list_header', lang(update), resolve("sort_order_"+order, lang(update)))
         for item in case_list:
@@ -242,7 +235,10 @@ def callback_list_pages(update, context):
     query = update.callback_query
     order = context.chat_data.get('order', SORT_ORDERS[0]) # for backward comp
     page, limit = int(context.match.group(1)), int(context.match.group(2))
-    case_list = api.cases_country_list(sort_by=order)
+    if order in ["vaccinations"]:
+        case_list = api.vaccinations_country_list(sort_by=order)
+    else:
+        case_list = api.cases_country_list(sort_by=order)
     if page >= 0:
         case_list = case_list[page*limit:(page+1)*limit]
     else:
@@ -277,7 +273,10 @@ def callback_list_order(update, context):
     # save the selected order
     context.chat_data['order'] = order
     limit = int(context.match.group(2))
-    case_list = api.cases_country_list(sort_by=order)[:limit]
+    if order in ["vaccinations"]:
+        case_list = api.vaccinations_country_list(sort_by=order)[:limit]
+    else:
+        case_list = api.cases_country_list(sort_by=order)[:limit]
     query.answer()
     if len(case_list) > 0:
         text = resolve('list_header', lang(update), resolve("sort_order_"+order, lang(update)))
@@ -288,6 +287,55 @@ def callback_list_order(update, context):
     else:
         query.edit_message_text(resolve('no_data', lang(update)),
                                 reply_markup=get_list_keyboard(update, 0, limit, len(case_list) < limit))
+
+### Map ###
+
+# command: /map
+@handler_decorator
+def command_map(update, context):
+    code = None
+    if len(context.args) > 0:
+        resolved = resolve_query_string(context.args[0])
+        if resolved:
+            code = resolved
+            photo = wikidata.cases_country_map(code)
+        elif WORLD_IDENT in context.args[0]:
+            code = WORLD_IDENT
+            photo = wikidata.cases_world_map()
+        else:
+            update.message.reply_text(resolve('unknown_place', lang(update)))
+            return
+    else:
+        if 'country' in context.chat_data:
+            code = context.chat_data['country']
+            photo = wikidata.cases_country_map(code)
+        else:
+            code = WORLD_IDENT
+            photo = wikidata.cases_world_map()
+    if photo:
+        caption = resolve("map_caption", lang(update), *get_name_and_icon(code))
+        update.message.reply_photo(photo=photo, caption=caption, parse_mode=ParseMode.MARKDOWN)
+    else:
+        update.message.reply_text(resolve('unknown_place', lang(update)))
+
+@handler_decorator
+def callback_map(update, context):
+    code = context.match.group(1)
+    if code == WORLD_IDENT:
+        photo = wikidata.cases_world_map()
+    else:
+        photo = wikidata.cases_country_map(code)
+    if photo:
+        caption = resolve("map_caption", lang(update), *get_name_and_icon(code))
+        update.callback_query.answer()
+        context.bot.send_photo(
+            chat_id=update.callback_query.message.chat_id,
+            photo=photo, caption=caption,
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        update.callback_query.answer()
+        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('unknown_place', lang(update)))
 
 ### Graphs ###
 
@@ -324,6 +372,48 @@ def callback_graph(update, context):
     data = api.timeseries(country_code)
     if data:
         buffer = plot_timeseries(data)
+        update.callback_query.answer()
+        context.bot.send_photo(chat_id=update.callback_query.message.chat_id, photo=buffer)
+        buffer.close()
+    else:
+        update.callback_query.answer()
+        context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=resolve('unknown_place', lang(update)))
+
+### Vaccinations ###
+
+# command: /vacc
+@handler_decorator
+def command_vacc(update, context):
+    if len(context.args) > 0:
+        resolved = resolve_query_string(context.args[0])
+        if resolved:
+            data = api.vaccinations_series(resolved)
+        elif WORLD_IDENT in context.args[0]:
+            data = api.vaccinations_series()
+        else:
+            update.message.reply_text(resolve('unknown_place', lang(update)))
+            return
+    else:
+        if 'country' in context.chat_data:
+            country_code = context.chat_data['country']
+            data = api.vaccinations_series(country_code)
+        else:
+            data = api.vaccinations_series()
+    if data:
+        buffer = plot_vaccinations_series(data)
+        update.message.reply_photo(photo=buffer)
+        buffer.close()
+    else:
+        update.message.reply_text(resolve('unknown_place', lang(update)))
+
+@handler_decorator
+def callback_vacc(update, context):
+    country_code = context.match.group(1)
+    if country_code == WORLD_IDENT:
+        country_code = None
+    data = api.vaccinations_series(country_code)
+    if data:
+        buffer = plot_vaccinations_series(data)
         update.callback_query.answer()
         context.bot.send_photo(chat_id=update.callback_query.message.chat_id, photo=buffer)
         buffer.close()
@@ -485,9 +575,14 @@ def main(config):
     dp.add_handler(CommandHandler("today", command_today))
     dp.add_handler(CommandHandler("world", command_world))
     dp.add_handler(CommandHandler("list", command_list))
+    # map
+    dp.add_handler(CommandHandler("map", command_map))
+    dp.add_handler(CallbackQueryHandler(callback_map, pattern=r"map (\w+)"))
     # graphs
     dp.add_handler(CommandHandler("graph", command_graph))
     dp.add_handler(CallbackQueryHandler(callback_graph, pattern=r"graph (\w+)"))
+    dp.add_handler(CommandHandler(["vacc", "vaccinations"], command_vacc))
+    dp.add_handler(CallbackQueryHandler(callback_vacc, pattern=r"vacc (\w+)"))
     # callbacks for page buttons in list
     dp.add_handler(CallbackQueryHandler(callback_list_pages, pattern=r"list (-?\d+) (\d+)"))
     dp.add_handler(CallbackQueryHandler(callback_list_order_menu, pattern=r"list_order_menu (\d+) \(([\d\s]+)\)"))
@@ -500,8 +595,6 @@ def main(config):
             dp.add_handler(CommandHandler(country['iso3'], callback))
         name_normal = re.sub(r"[^a-z]", "_", country['name'].lower())
         dp.add_handler(CommandHandler(name_normal, callback))
-    # country detailed button callback
-    dp.add_handler(CallbackQueryHandler(callback_stats, pattern=r"stats (\w+) (\d)"))
     # set country (this has to be added before the free text handler)
     dp.add_handler(ConversationHandler(
         entry_points=[CommandHandler("setcountry", handle_setcountry_start)],
